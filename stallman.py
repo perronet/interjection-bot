@@ -3,7 +3,7 @@ from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import telegram, time, logging, time, datetime
 import re
 
-token = #API token goes here 
+token = #API token goes here
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",level=logging.INFO)
 updater = Updater(token)
 dispatcher = updater.dispatcher
@@ -11,7 +11,21 @@ log = open("log", "w+")
 non_free = 0
 language = "en"
 
-en_text = ("I\'d just like to interject for a moment.  What you\'re referring to as Linux, "
+en_text_opensource = ("Open Source misses the point of Free Software, "
+"the terms \"free software\" and \"open source\" stand for almost the same range of programs. "
+"However, they say deeply different things about those programs, based on different values.\n"
+"The free software movement campaigns for freedom for the users of computing; it is a movement for freedom "
+"and justice. By contrast, the open source idea values mainly practical advantage and does not campaign for principles.\n"
+"This is why we do not agree with open source, and do not use that term.")
+
+it_text_opensource = ("L\'Open Source non coglie gli obiettivi del Software Libero. "
+"I termini \"software libero\" e \"open source\" rappresentano quasi la stessa gamma di programmi, "
+"tuttavia dicono cose profondamente diverse su di essi, basate su valori diversi.\n"
+"Il movimento del software libero promuove la libertà per gli utenti; è un movimento per la libertà e la giustizia. "
+"Al contrario, l\'idea dell\'Open Source valorizza principalmente il vantaggio pratico e non promuove i nostri principi.\n"
+"Per questo motivo non siamo d\'accordo con l\'Open Source e non usiamo questo termine.")
+
+en_text_gnulinux = ("I\'d just like to interject for a moment.  What you\'re referring to as Linux, "
 "is in fact, GNU/Linux, or as I\'ve recently taken to calling it, GNU plus Linux.\n"
 "Linux is not an operating system unto itself, but rather another free component "
 "of a fully functioning GNU system made useful by the GNU corelibs, shell "
@@ -29,7 +43,7 @@ en_text = ("I\'d just like to interject for a moment.  What you\'re referring to
 "is basically GNU with Linux added, or GNU/Linux.  All the so-called \"Linux\" "
 "distributions are really distributions of GNU/Linux.")
 
-it_text = ("Mi piacerebbe solo intervenire per un momento. Ciò a cui ti stai riferendo come Linux, "
+it_text_gnulinux = ("Mi piacerebbe solo intervenire per un momento. Ciò a cui ti stai riferendo come Linux, "
 "è in effetti, GNU/Linux, o come ho recentemente cominciato a chiamarlo, GNU+Linux.\n"
 "Linux non è un sistema operativo in sé, ma piuttosto un altro componente gratuito "
 "di un sistema GNU pienamente funzionante reso utile dai corelibs GNU, utilities della shell "
@@ -54,7 +68,19 @@ help_text = """
 /help - get help
 """
 
-def interjection(bot, update):
+def interjection_gnulinux(bot, update):
+    update_log(update)
+    bot.send_chat_action(chat_id=update.message.chat_id, action=telegram.ChatAction.TYPING)
+    time.sleep(5)    
+    update.message.reply_text(text=en_text_gnulinux if language == "en" else it_text_gnulinux, quote=True)
+
+def interjection_opensource(bot, update):
+    update_log(update)
+    bot.send_chat_action(chat_id=update.message.chat_id, action=telegram.ChatAction.TYPING)
+    time.sleep(5)    
+    update.message.reply_text(text=en_text_opensource if language == "en" else it_text_opensource, quote=True)
+
+def update_log(update):
     with open("log", "a") as log:
         global non_free
         non_free += 1
@@ -62,7 +88,6 @@ def interjection(bot, update):
                                                  update.effective_message.text)
         print(message)
         print("Interjections: {0}\n".format(non_free))
-        update.message.reply_text(text=en_text if language == "en" else it_text, quote=True)
         log.write("[{0}] {1}\n".format(str(datetime.datetime.now()).split('.')[0], message))
 
 def lang(bot, update):
@@ -94,15 +119,18 @@ nonfree_handler = CommandHandler("nonfree", lambda bot, update : bot.send_messag
                                 text="Interjections: {0}".format(non_free)))
 
 #Regex to filter incoming messages
-pattern = re.compile("(?<!GNU/|GNU\+|GNU )linux", re.IGNORECASE)
-syntax_check_handler = MessageHandler(Filters.regex(pattern), interjection) 
+pattern_gnulinux = re.compile("(?<!GNU/)(?<!GNU\+)(?<!GNU )(?<!GNU plus )linux", re.IGNORECASE)
+pattern_opensource = re.compile("(open\s*source)|(software\s*libero)", re.IGNORECASE)
+syntax_check_gnulinux = MessageHandler(Filters.regex(pattern_gnulinux), interjection_gnulinux)
+syntax_check_opensource = MessageHandler(Filters.regex(pattern_opensource), interjection_opensource)  
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(lang_handler)
 dispatcher.add_handler(CallbackQueryHandler(select_lang))
 dispatcher.add_handler(help_handler)
 dispatcher.add_handler(nonfree_handler)
-dispatcher.add_handler(syntax_check_handler)
+dispatcher.add_handler(syntax_check_gnulinux) #Overrides opensource if a message contains both
+dispatcher.add_handler(syntax_check_opensource)
 
-updater.start_polling(poll_interval=1, timeout=10, clean=False, bootstrap_retries=-1, 
+updater.start_polling(poll_interval=3, timeout=10, clean=False, bootstrap_retries=-1, 
                      read_latency=2.0, allowed_updates=None)
